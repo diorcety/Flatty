@@ -171,13 +171,13 @@ class Schema(object):
 		return flatit(self, cm = cm)
 	
 	@classmethod
-	def unflatit(cls, flat_dict, cm):
+	def unflatit(cls_or_obj, flat_dict, cm):
 		"""one way to unflatten and load the data back in the schema objects
 			
 		Returns:
 			the object"""
 		
-		return unflatit(cls, flat_dict, cm = cm)		
+		return unflatit(cls_or_obj, flat_dict, cm = cm)		
 			
 def _check_type(val, type):
 	if type == None or val == None or type == types.NoneType:
@@ -220,7 +220,7 @@ class Converter(object):
 		raise NotImplementedError()
 	
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		"""need to be implemented to convert a primitive to a python object 
 	
 		Args:
@@ -242,10 +242,16 @@ class DateConverter(Converter):
 			return None
 		return obj.isoformat()
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		if val == None:
 			return None
-		return datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
+		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
+			return datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
+		else:
+			obj = val_type_or_obj
+			d = datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
+			obj.replace(d.year, d.month, d.day)
+			return obj
 			
 class DateTimeConverter(Converter):
 	"""
@@ -259,10 +265,16 @@ class DateTimeConverter(Converter):
 			return None
 		return obj.isoformat()
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		if val == None:
 			return None
-		return datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
+		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
+			return datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
+		else:
+			obj = val_type_or_obj
+			dt = datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
+			obj.replace(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
+			return obj
 
 class TimeConverter(Converter):
 	"""
@@ -276,10 +288,16 @@ class TimeConverter(Converter):
 			return None
 		return obj.strftime("%H:%M:%S.%f")
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		if val == None:
 			return None
-		return datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
+		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
+			return datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
+		else:
+			obj = val_type_or_obj
+			t = datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
+			obj.replace(t.hour, t.minute, t.second, t.microsecond, t.tzinfo)
+			return obj
 	
 class SchemaConverter(Converter):
 	"""
@@ -315,9 +333,10 @@ class SchemaConverter(Converter):
 		return flat_dict
 	
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		#instantiate new object
-		cls_obj = val_type()
+		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
+		cls_obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
 		#iterate all attributes
 		for attr_name in dir(val_type):
 			attr_value = getattr(val_type, attr_name)
@@ -365,8 +384,9 @@ class TypedListConverter(Converter):
 		return flat_list
 	
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
-		obj = val_type()
+	def to_obj(cls, val_type_or_obj, val, cm):
+		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
+		obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
 		if val == None:
 			return None
 		
@@ -400,10 +420,11 @@ class TypedDictConverter(Converter):
 		return flat_dict
 	
 	@classmethod
-	def to_obj(cls, val_type, val, cm):
+	def to_obj(cls, val_type_or_obj, val, cm):
 		if val == None:
 			return None
-		obj = val_type()
+		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
+		obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
 		for k, v in val.items():
 			obj[k] = unflatit(val_type.ftype, v, cm = cm)
 		return obj
@@ -449,7 +470,7 @@ class ConvertManager(object):
 		return obj
 	
 	@classmethod
-	def to_obj(cls, val_type, val):
+	def to_obj(cls, val_type_or_obj, val):
 		"""calls the right converter and converts the flat val to a schema
 		object
 	
@@ -461,16 +482,17 @@ class ConvertManager(object):
 		Returns:
 			a converted high level schema object"""
 		
+		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
 		for type in cls._convert_dict:
 			#String comparisson is okay here since we compare schema against
 			#object types which can differ in the ftype class variable therefore
 			#string compare is correct and direct type compare fails
 			if str(val_type) == str(type):
-				return cls._convert_dict[type]['conv'].to_obj(val_type, val, cls)
+				return cls._convert_dict[type]['conv'].to_obj(val_type_or_obj, val, cls)
 		
 		for type in cls._convert_dict:
 			if cls._convert_dict[type]['exact'] == False and issubclass(val_type, type):
-				return cls._convert_dict[type]['conv'].to_obj(val_type, val, cls)
+				return cls._convert_dict[type]['conv'].to_obj(val_type_or_obj, val, cls)
 			
 		return val
 	
@@ -554,16 +576,16 @@ def flatit(obj, obj_type=None, cm = ConvertManager):
 		obj_type = type(obj)
 	return cm.to_flat(obj_type, obj)
 	
-def unflatit(cls, flat_dict, cm = ConvertManager):
+def unflatit(cls_or_obj, flat_dict, cm = ConvertManager):
 	"""one way to unflatten and load the data back in the `cls`
 	
 		Args:
 			flat_dict: a flat dict which will be loaded into an instance of
-				the `cls`
-			cls: the class from which the instance is builded where the 
-				data is merged
+				the `cls_or_obj`
+			cls_or_obj: the class from which the instance is builded, or an
+				an existing instance where the data is merged
 			
 		Returns:
 			an instance of type `cls`"""
-	return cm.to_obj(cls, flat_dict)
+	return cm.to_obj(cls_or_obj, flat_dict)
 	
