@@ -91,7 +91,7 @@ class ActionsTestCase(unittest.TestCase):
 		b = Y(y=2)
 		t = Top(t1=[a], t2=[b])
 		
-		t.flatit()
+		t.flatit(cm = flatty.ConvertManager)
 		
 	def test_types_in_typed_list(self):
 		class Name(flatty.Schema):
@@ -321,10 +321,10 @@ class ActionsTestCase(unittest.TestCase):
 		class RgbConverter(flatty.Converter):
 			import datetime
 			@classmethod
-			def to_flat(cls, obj_type, obj):
+			def to_flat(cls, obj_type, obj, cm):
 				return str("%d,%d,%d"%(obj.r,obj.g, obj.b))
 			@classmethod
-			def to_obj(cls, val_type, val):
+			def to_obj(cls, val_type, val, cm):
 				rgb_arr = str(val).split(',')
 				obj = Rgb(int(rgb_arr[0]),int(rgb_arr[1]),int(rgb_arr[2]))
 				return obj
@@ -336,9 +336,9 @@ class ActionsTestCase(unittest.TestCase):
 			
 		my_color = Rgb(255,124,45)
 		foo = Foo(color=my_color)
-		flat_dict = foo.flatit()
+		flat_dict = foo.flatit(cm = flatty.ConvertManager)
 		self.assertTrue(is_plain_dict(flat_dict))
-		restored_foo = Foo.unflatit(flat_dict)
+		restored_foo = Foo.unflatit(flat_dict, cm = flatty.ConvertManager)
 		restored_color = restored_foo.color
 		self.assertEqual(restored_color.r, my_color.r)
 		self.assertEqual(restored_color.g, my_color.g)
@@ -347,23 +347,23 @@ class ActionsTestCase(unittest.TestCase):
 	def test_datetime_conversion(self):
 		import datetime
 		now = datetime.datetime.now()
-		now_flat = flatty.DateTimeConverter.to_flat(datetime.datetime, now)
-		restored_now = flatty.DateTimeConverter.to_obj(datetime.datetime, now_flat)
+		now_flat = flatty.DateTimeConverter.to_flat(datetime.datetime, now, cm = flatty.ConvertManager)
+		restored_now = flatty.DateTimeConverter.to_obj(datetime.datetime, now_flat, cm = flatty.ConvertManager)
 		self.assertEqual(now, restored_now)
 		
 	
 	def test_date_conversion(self):
 		import datetime
 		now = datetime.datetime.now().date()
-		now_flat = flatty.DateConverter.to_flat(datetime.datetime.date, now)
-		restored_now = flatty.DateConverter.to_obj(datetime.datetime.date, now_flat)
+		now_flat = flatty.DateConverter.to_flat(datetime.datetime.date, now, cm = flatty.ConvertManager)
+		restored_now = flatty.DateConverter.to_obj(datetime.datetime.date, now_flat, cm = flatty.ConvertManager)
 		self.assertEqual(now, restored_now)
 		
 	def test_time_conversion(self):
 		import datetime
 		now = datetime.datetime.now().time()
-		now_flat = flatty.TimeConverter.to_flat(datetime.datetime.time, now)
-		restored_now = flatty.TimeConverter.to_obj(datetime.datetime.time, now_flat)
+		now_flat = flatty.TimeConverter.to_flat(datetime.datetime.time, now, cm = flatty.ConvertManager)
+		restored_now = flatty.TimeConverter.to_obj(datetime.datetime.time, now_flat, cm = flatty.ConvertManager)
 		self.assertEqual(now, restored_now)
 		
 	def test_flatit_primitve(self):
