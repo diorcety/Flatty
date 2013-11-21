@@ -11,6 +11,7 @@ Classes
 import inspect
 import datetime
 import types
+import sys
 
 
 class MetaBaseFlattyType(type):
@@ -74,7 +75,10 @@ class BaseFlattyType(object):
 		# class must be generated dynamically otherwise ftype is set on
 		# all classes which caused Bug #2
 		new_cls = type(cls.__name__, cls.__bases__, dict(ftype=ftype, set_type=cls.set_type))
-		return new_cls	
+		setattr(sys.modules[cls.__module__], cls.__name__, new_cls)
+		setattr(sys.modules[__name__], cls.__name__, None)
+		new_cls.__module__ = cls.__module__
+		return new_cls
 
 class TypedList(BaseFlattyType, list):
 	"""
