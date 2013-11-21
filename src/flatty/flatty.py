@@ -16,7 +16,8 @@ import sys
 
 class MetaBaseFlattyType(type):
 	def __eq__(self, other):
-		""" We need to overwrite this since the dynamically generated classes
+		""" 
+		We need to overwrite this since the dynamically generated classes
 		with ftype don't return equal when compared unlass compared only by names
 		"""
 		if hasattr(self, '__name__') and hasattr(other, '__name__') and \
@@ -26,7 +27,8 @@ class MetaBaseFlattyType(type):
 			return False
 		
 	def __instancecheck__(self, inst):
-		""" We also need to overwrite this because of the failing comparrission
+		""" 
+		We also need to overwrite this because of the failing comparrission
 		due to dynamic class generation
 		"""
 		candidates = [type(inst), inst.__class__] 
@@ -48,14 +50,14 @@ class MetaBaseFlattyType(type):
 		
 		intersect = set(str_c).intersection( set(str_candidates) )
 		if len(intersect) > 0: return True
-		
-		 
+	
 
 class BaseFlattyType(object):
 	"""
 	This class is the base Class for all special flatty schema types.
 	These are :class:`TypedList` and :class:`TypedDict`
 	"""
+	
 	ftype=None
 	__metaclass__ = MetaBaseFlattyType
 	
@@ -63,14 +65,16 @@ class BaseFlattyType(object):
 	
 	@classmethod
 	def set_type(cls, ftype):
-		"""sets the type for the inherited flatty schema class
+		"""
+		sets the type for the inherited flatty schema class
 	
 		Args:
 			ftype: the type/class of the instance objects in the schema
 			
 		Returns:
 			a class object with the class variable `ftype` set, used to 
-			determine the instance type during unflattening"""
+			determine the instance type during unflattening
+		"""
 			
 		# class must be generated dynamically otherwise ftype is set on
 		# all classes which caused Bug #2
@@ -79,6 +83,7 @@ class BaseFlattyType(object):
 		setattr(sys.modules[__name__], cls.__name__, None)
 		new_cls.__module__ = cls.__module__
 		return new_cls
+	
 
 class TypedList(BaseFlattyType, list):
 	"""
@@ -112,7 +117,7 @@ class TypedList(BaseFlattyType, list):
 		True
 	"""
 	pass
-	
+
 class TypedDict(BaseFlattyType, dict):
 	"""
 	This class is used for typed dict. During flattening and unflattening
@@ -168,21 +173,27 @@ class Schema(object):
 			setattr(self, name, value)
 	
 	def flatit(self, cm):
-		"""one way to flatten the instance of this class
+		"""
+		one way to flatten the instance of this class
 			
 		Returns:
-			a dict where the instance is flattened to primitive types"""
+			a dict where the instance is flattened to primitive types
+		"""
+		
 		return flatit(self, cm = cm)
 	
 	@classmethod
-	def unflatit(cls_or_obj, flat_dict, cm):
-		"""one way to unflatten and load the data back in the schema objects
+	def unflatit(cls, flat_dict, cm):
+		"""
+		one way to unflatten and load the data back in the schema objects
 			
 		Returns:
-			the object"""
+			the object
+		"""
 		
-		return unflatit(cls_or_obj, flat_dict, cm = cm)		
-			
+		return unflatit(cls, flat_dict, cm = cm)		
+	
+
 def _check_type(val, type):
 	if type == None or val == None or type == types.NoneType:
 		return
@@ -190,6 +201,7 @@ def _check_type(val, type):
 		type = type.__class__
 	if not isinstance(val, type): 
 		raise TypeError(str(val.__class__) + " != " + str(type))
+	
 
 class Converter(object):
 	"""
@@ -197,9 +209,11 @@ class Converter(object):
 	by inherit from this class and implement the following two methods
 	
 	"""
+	
 	@classmethod
 	def check_type(cls, attr_type, attr_value, cm):
-		"""should be implemented to check if the attr_type from the schema
+		"""
+		should be implemented to check if the attr_type from the schema
 		matches the real type of attr_value 
 	
 		Args:
@@ -208,32 +222,38 @@ class Converter(object):
 			
 		Returns:
 			Nothing if type of attr_value is ok, otherwise should raise
-			a TypeError Exception"""
+			a TypeError Exception
+		"""
 		pass
 	
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
-		"""need to be implemented to convert a python object to a primitive 
+	def to_flat(cls, obj_type, obj, val, cm):
+		"""
+		need to be implemented to convert a python object to a primitive 
 	
 		Args:
 			obj: the src obj which needs to be converted here
 			
 		Returns:
-			a converted primitive object"""
+			a converted primitive object
+		"""
 		raise NotImplementedError()
 	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
-		"""need to be implemented to convert a primitive to a python object 
+	def to_obj(cls, obj_type, val, obj, cm):
+		"""
+		need to be implemented to convert a primitive to a python object 
 	
 		Args:
 			val: the flattened data which needs to be converted here
 			
 		Returns:
-			a converted high level schema object"""
+			a converted high level schema object
+		"""
 		raise NotImplementedError()
 	
+
 class DateConverter(Converter):
 	"""
 	Converter for datetime.date
@@ -241,22 +261,24 @@ class DateConverter(Converter):
 	"""
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
+	def to_flat(cls, obj_type, obj, val, cm):
 		if obj == None:
 			return None
+			
 		return obj.isoformat()
+	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
+	def to_obj(cls, obj_type, val, obj, cm):
 		if val == None:
 			return None
-		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
-			return datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
+		if obj == None:
+			obj = datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
 		else:
-			obj = val_type_or_obj
 			d = datetime.datetime.strptime(str(val), "%Y-%m-%d").date()
 			obj.replace(d.year, d.month, d.day)
-			return obj
-			
+		return obj
+	
+
 class DateTimeConverter(Converter):
 	"""
 	Converter for datetime.datetime
@@ -264,21 +286,21 @@ class DateTimeConverter(Converter):
 	"""
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
+	def to_flat(cls, obj_type, obj, val, cm):
 		if obj == None:
 			return None
 		return obj.isoformat()
+	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
+	def to_obj(cls, obj_type, val, obj, cm):
 		if val == None:
 			return None
-		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
-			return datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
+		if obj == None:
+			obj = datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
 		else:
-			obj = val_type_or_obj
 			dt = datetime.datetime.strptime(str(val), "%Y-%m-%dT%H:%M:%S.%f")
 			obj.replace(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
-			return obj
+		return obj
 
 class TimeConverter(Converter):
 	"""
@@ -287,73 +309,89 @@ class TimeConverter(Converter):
 	"""
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
+	def to_flat(cls, obj_type, obj, val, cm):
 		if obj == None:
 			return None
 		return obj.strftime("%H:%M:%S.%f")
+	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
+	def to_obj(cls, obj_type, val, obj, cm):
 		if val == None:
 			return None
-		if inspect.isclass(val_type_or_obj) or inspect.ismethod(val_type_or_obj) or inspect.ismethoddescriptor(val_type_or_obj):
-			return datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
+		if obj == None:
+			obj = datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
 		else:
-			obj = val_type_or_obj
 			t = datetime.datetime.strptime(str(val), "%H:%M:%S.%f").time()
 			obj.replace(t.hour, t.minute, t.second, t.microsecond, t.tzinfo)
-			return obj
+		return obj
 	
 class SchemaConverter(Converter):
 	"""
 	Convert basic schema classes
 	
 	"""
+	
 	@classmethod
 	def check_type(cls, attr_type, attr_value, cm):
+		attr_type = attr_type if inspect.isclass(attr_type) else type(attr_type)
 		if not issubclass(type(attr_value), attr_type):
 			raise TypeError(repr(type(attr_value)) + '!=' + repr(attr_type))
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
-		flat_dict = {}
+	def to_flat(cls, obj_type, obj, val, cm):
+		if obj == None:
+			return None
+		if val == None:
+			flat_dict = {}
+		else:
+			flat_dict = val
+		
 		for attr_name in dir(obj_type):
-			attr_value = getattr(obj, attr_name)
-			attr_type = getattr(obj_type, attr_name)
-			if not attr_name.startswith('__') and not inspect.ismethod(attr_value):
-				
-				#set None if types are still present in the object
-				# and these are types and not objects
-				if attr_value == attr_type and inspect.isclass(attr_value):
-					attr_value = None
+			if hasattr(obj, attr_name):
+				attr_value = getattr(obj, attr_name)
+				attr_type = getattr(obj_type, attr_name)
+				if not attr_name.startswith('__') and not inspect.ismethod(attr_value):
 					
-				#get the type of default instances in schema definitions
-				if inspect.isclass(attr_type) == False:
-					attr_type = type(attr_type)
+					#set None if types are still present in the object
+					# and these are types and not objects
+					if attr_value == attr_type and inspect.isclass(attr_value):
+						attr_value = None
+						
+					check_type(attr_type, attr_value, cm)
 					
-				check_type(attr_type, attr_value, cm = cm)
-				attr_value = flatit(attr_value, attr_type, cm = cm)
+					sub_val = None
+					if attr_name in flat_dict:
+						sub_val = flat_dict[attr_name]
 					
-				flat_dict[attr_name] = attr_value		
+					attr_value = flatit(attr_value, attr_type, sub_val, cm)
+					
+					flat_dict[attr_name] = attr_value
 		return flat_dict
 	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
-		#instantiate new object
-		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
-		cls_obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
+	def to_obj(cls, obj_type, val, obj, cm):
+		if val == None:
+			return None
+		if obj == None:
+			cls_obj = obj_type() if inspect.isclass(obj_type) else type(obj_type)()
+		else:
+			cls_obj = obj
+
 		#iterate all attributes
-		for attr_name in dir(val_type):
-			attr_value = getattr(val_type, attr_name)
-			if not attr_name.startswith('__') and not inspect.ismethod(attr_value):
+		for attr_name in dir(obj_type):
+			attr_type = getattr(obj_type, attr_name)
+			if not attr_name.startswith('__') and not inspect.ismethod(attr_type):
 				#set attr the value of the flat_dict if exists
 				flat_val = None
 				if attr_name in val:
 					flat_val = val[attr_name]
-					#get the type of default instances in schema definitions
-					if inspect.isclass(attr_value) == False:
-						attr_value = type(attr_value)
-					conv_attr_value = unflatit(attr_value, flat_val, cm = cm)
-					check_type(attr_value, conv_attr_value, cm = cm)
+					
+					sub_obj = None
+					if hasattr(cls_obj, attr_name):
+						sub_obj = getattr(cls_obj, attr_name)
+					
+					conv_attr_value = unflatit(flat_val, attr_type, sub_obj, cm)
+					check_type(attr_type, conv_attr_value, cm)
 				
 					setattr(cls_obj, attr_name, conv_attr_value)
 		return cls_obj
@@ -366,6 +404,7 @@ class TypedListConverter(Converter):
 	
 	@classmethod
 	def check_type(cls, attr_type, attr_value, cm):
+		attr_type = attr_type if inspect.isclass(attr_type) else type(attr_type)
 		if not(issubclass(type(attr_value), attr_type) \
 			 or issubclass(type(attr_value), list) \
 			 or type(attr_value) == types.NoneType):
@@ -373,30 +412,53 @@ class TypedListConverter(Converter):
 	
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
-		#TODO: CHECK TYPE but we might need also an additional val_type here as
-		# method argument. Especially for the SchemaConverter because
-		# there you need to check if the obj is a subclass of type defined in
-		# the schema
-		check_type(obj_type, obj, cm = cm)
+	def to_flat(cls, obj_type, obj, val, cm):
 		if obj == None:
 			return None
-		flat_list = []
+		if val == None:
+			flat_list = []
+		else:
+			flat_list = val
+
+		def get_sub_type(idx):
+			sub_type = None
+			if hasattr(obj_type, 'ftype'):
+				sub_type = obj_type.ftype
+			elif isinstance(obj_type, list) and len(obj_type) > idx:
+				sub_type = obj_type[idx]
+			return sub_type
+			
+
+		check_type(obj_type, obj, cm)
+
 		for item in obj:
-			check_type(obj_type.ftype, item, cm = cm)
-			flat_list.append(flatit(item, cm = cm))
+			check_type(get_sub_type(0), item, cm)
+			flat_list.append(flatit(item, get_sub_type(0), None, cm))
 		return flat_list
 	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
-		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
-		obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
+	def to_obj(cls, obj_type, val, obj, cm):
 		if val == None:
 			return None
+		if obj == None:
+			cls_obj = obj_type() if inspect.isclass(obj_type) else type(obj_type)()
+		else:
+			cls_obj = obj
 		
+		def get_sub_type(idx, v):
+			if hasattr(obj_type, 'ftype'):
+				sub_type = obj_type.ftype
+			elif isinstance(obj_type, list) and len(obj_type) > idx:
+				sub_type = obj_type[idx]
+			else:
+				raise Exception('Can\'t guess type associated with: "'  + v + '"')
+			return sub_type
+			
 		for item in val:
-			obj.append(unflatit(val_type.ftype, item, cm = cm))
-		return obj
+			ret_item = unflatit(item, get_sub_type(0, item), None, cm)
+			check_type(get_sub_type(0, item), ret_item, cm)
+			cls_obj.append(ret_item)
+		return cls_obj
 	
 	
 class TypedDictConverter(Converter):
@@ -404,8 +466,10 @@ class TypedDictConverter(Converter):
 	Convert TypedList classes
 	
 	"""
+	
 	@classmethod
 	def check_type(cls, attr_type, attr_value, cm):
+		attr_type = attr_type if inspect.isclass(attr_type) else type(attr_type)
 		if not(issubclass(type(attr_value), attr_type) \
 			 or issubclass(type(attr_value), dict) \
 			 or type(attr_value) == types.NoneType):
@@ -413,25 +477,61 @@ class TypedDictConverter(Converter):
 	
 	
 	@classmethod
-	def to_flat(cls, obj_type, obj, cm):
-		check_type(obj_type, obj, cm = cm)
+	def to_flat(cls, obj_type, obj, val, cm):
 		if obj == None:
 			return None
-		flat_dict = {}
+		if val == None:
+			flat_dict = {}
+		else:
+			flat_dict = val
+		
+		def get_sub_type(elem):
+			sub_type = None
+			if hasattr(obj_type, 'ftype'):
+				sub_type = obj_type.ftype
+			elif isinstance(obj_type, dict) and elem in obj_type:
+				sub_type = obj_type[elem]
+			return sub_type
+
+		check_type(obj_type, obj, cm)
 		for k, v in obj.items():
-			check_type(obj_type.ftype, v, cm = cm)
-			flat_dict[k] = flatit(v, cm = cm)
+			check_type(get_sub_type(k), v, cm)
+			
+			sub_val = None
+			if k in flat_dict:
+				sub_val = flat_dict[k]
+			
+			flat_dict[k] = flatit(v, get_sub_type(k), sub_val, cm)
 		return flat_dict
 	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val, cm):
+	def to_obj(cls, obj_type, val, obj, cm):
 		if val == None:
 			return None
-		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
-		obj = val_type_or_obj() if inspect.isclass(val_type_or_obj) else val_type_or_obj
+		if obj == None:
+			cls_obj = obj_type() if inspect.isclass(obj_type) else type(obj_type)()
+		else:
+			cls_obj = obj
+		
+		def get_sub_type(elem, v):
+			if hasattr(obj_type, 'ftype'):
+				sub_type = obj_type.ftype
+			elif isinstance(obj_type, dict) and elem in obj_type:
+				sub_type = obj_type[elem]
+			else:
+				raise Exception('Can\'t guess type associated with: "'  + v + '"')
+			return sub_type
+		
 		for k, v in val.items():
-			obj[k] = unflatit(val_type.ftype, v, cm = cm)
-		return obj
+			sub_obj = None
+			if hasattr(cls_obj, k):
+				sub_obj = getattr(cls_obj, k)
+
+			ret_v = unflatit(v, get_sub_type(k, v), sub_obj, cm)
+
+			check_type(get_sub_type(k, v), ret_v, cm)
+			cls_obj[k] = ret_v
+		return cls_obj
 	
 
 class ConvertManager(object):
@@ -441,17 +541,20 @@ class ConvertManager(object):
 	"""
 	
 	_convert_dict = {
-					datetime.date:{'conv':DateConverter, 'exact':True},
-					datetime.datetime:{'conv':DateTimeConverter, 'exact':True},
-					datetime.time:{'conv':TimeConverter, 'exact':True},
-					Schema:{'conv':SchemaConverter, 'exact':False},
-					TypedDict:{'conv':TypedDictConverter, 'exact':True},
-					TypedList:{'conv':TypedListConverter, 'exact':True},
-					}
+				datetime.date:{'conv':DateConverter, 'exact':True},
+				datetime.datetime:{'conv':DateTimeConverter, 'exact':True},
+				datetime.time:{'conv':TimeConverter, 'exact':True},
+				Schema:{'conv':SchemaConverter, 'exact':False},
+				TypedDict:{'conv':TypedDictConverter, 'exact':True},
+				dict:{'conv':TypedDictConverter, 'exact':True},
+				TypedList:{'conv':TypedListConverter, 'exact':True},
+				list:{'conv':TypedListConverter, 'exact':True},
+			}
 	
 	@classmethod
-	def to_flat(cls, val_type, obj):
-		"""calls the right converter and converts to a flat type
+	def to_flat(cls, obj_type, obj, val):
+		"""
+		calls the right converter and converts to a flat type
 	
 		Args:
 			val_type: the type of the object
@@ -460,22 +563,25 @@ class ConvertManager(object):
 			
 		Returns:
 			a converted primitive object"""
+
+		obj_type_class = obj_type if inspect.isclass(obj_type) else obj_type.__class__
 		for type in cls._convert_dict:
 			#String comparisson is okay here since we compare schema against
 			#object types which can differ in the ftype class variable therefore
 			#string compare is correct and direct type compare fails
-			if str(val_type) == str(type):
-				return cls._convert_dict[type]['conv'].to_flat(val_type, obj, cls)
+			if str(obj_type_class) == str(type):
+				return cls._convert_dict[type]['conv'].to_flat(obj_type, obj, val, cls)
 		
 		for type in cls._convert_dict:
-			if cls._convert_dict[type]['exact'] == False and issubclass(val_type, type):
-				return cls._convert_dict[type]['conv'].to_flat(val_type, obj, cls)
+			if cls._convert_dict[type]['exact'] == False and issubclass(obj_type_class, type):
+				return cls._convert_dict[type]['conv'].to_flat(obj_type, obj, val, cls)
 			
 		return obj
 	
 	@classmethod
-	def to_obj(cls, val_type_or_obj, val):
-		"""calls the right converter and converts the flat val to a schema
+	def to_obj(cls, obj_type, val, obj):
+		"""
+		calls the right converter and converts the flat val to a schema
 		object
 	
 		Args:
@@ -484,51 +590,58 @@ class ConvertManager(object):
 			val: the flattened data which needs to be converted here
 			
 		Returns:
-			a converted high level schema object"""
+			a converted high level schema object
+		"""
 		
-		val_type = val_type_or_obj if inspect.isclass(val_type_or_obj) else val_type_or_obj.__class__
+		obj_type_class = obj_type if inspect.isclass(obj_type) else obj_type.__class__
 		for type in cls._convert_dict:
 			#String comparisson is okay here since we compare schema against
 			#object types which can differ in the ftype class variable therefore
 			#string compare is correct and direct type compare fails
-			if str(val_type) == str(type):
-				return cls._convert_dict[type]['conv'].to_obj(val_type_or_obj, val, cls)
+			if str(obj_type_class) == str(type):
+				return cls._convert_dict[type]['conv'].to_obj(obj_type, val, obj, cls)
 		
 		for type in cls._convert_dict:
-			if cls._convert_dict[type]['exact'] == False and issubclass(val_type, type):
-				return cls._convert_dict[type]['conv'].to_obj(val_type_or_obj, val, cls)
+			if cls._convert_dict[type]['exact'] == False and issubclass(obj_type_class, type):
+				return cls._convert_dict[type]['conv'].to_obj(obj_type, val, obj, cls)
 			
 		return val
 	
 	@classmethod
 	def check_type(cls, attr_type, attr_value):
-		"""checks the type of value and type
-	
+		"""
+		checks the type of value and type
+		
 		Args:
 			attr_type: the type which the attr_value should have
 			
 			attr_value: obj which we check against attr_type
 			
 		Returns:
-			None if everything is ok, otherwise raise TypeError"""
-		for type in cls._convert_dict:
-			#String comparisson is okay here since we compare schema against
-			#object types which can differ in the ftype class variable therefore
-			#string compare is correct and direct type compare fails
-			if str(attr_type) == str(type):
-				cls._convert_dict[type]['conv'].check_type(attr_type, attr_value, cls)
-				return
-			
-		for type in cls._convert_dict:
-			if cls._convert_dict[type]['exact'] == False and issubclass(attr_type, type):
-				cls._convert_dict[type]['conv'].check_type(attr_type, attr_value, cls)
-				return
-			
-		_check_type(attr_value, attr_type)
+			None if everything is ok, otherwise raise TypeError
+		"""
+		if attr_type:
+			attr_type_class = attr_type if inspect.isclass(attr_type) else attr_type.__class__
+			for type in cls._convert_dict:
+				#String comparisson is okay here since we compare schema against
+				#object types which can differ in the ftype class variable therefore
+				#string compare is correct and direct type compare fails
+				if str(attr_type_class) == str(type):
+					cls._convert_dict[type]['conv'].check_type(attr_type, attr_value, cls)
+					return
+				
+			for type in cls._convert_dict:
+				if cls._convert_dict[type]['exact'] == False and issubclass(attr_type_class, type):
+					cls._convert_dict[type]['conv'].check_type(attr_type, attr_value, cls)
+					return
+		else:
+			attr_type_class = attr_type
+		_check_type(attr_value, attr_type_class)
 	
 	@classmethod
 	def set_converter(cls, conv_type, converter, exact=True):
-		"""sets a converter object for a given `conv_type`
+		"""
+		sets a converter object for a given `conv_type`
 	
 		Args:
 			conv_type: the type for which the converter is responsible
@@ -549,15 +662,18 @@ class ConvertManager(object):
 			cls._convert_dict[conv_type]['exact'] = exact
 		else:
 			raise TypeError('Subclass of Converter expected')
-	@classmethod
 	
+	@classmethod
 	def del_converter(cls, conv_type):
 		"""deletes the converter object for a given `conv_type`"""
 		if conv_type in cls._convert_dict:
 			del cls._convert_dict[conv_type]
+		
 	
+
 def check_type(attr_type, attr_value, cm = ConvertManager):
-	"""check the type of attr_value against attr_type
+	"""
+	check the type of attr_value against attr_type
 	
 		Args:
 			attr_type: a type
@@ -565,23 +681,31 @@ def check_type(attr_type, attr_value, cm = ConvertManager):
 	
 		Returns:
 			None in normal cases, if attr_type doesn't match type of
-			attr_value, raise TypeError"""
-	cm.check_type(attr_type, attr_value)
+			attr_value, raise TypeError
+	"""
 	
-def flatit(obj, obj_type=None, cm = ConvertManager):
-	"""one way to flatten the `obj`
+	cm.check_type(attr_type, attr_value)
+
+
+def flatit(obj, obj_type=None, val=None, cm = ConvertManager):
+	"""
+	one way to flatten the `obj`
 	
 		Args:
 			obj: a :class:`Schema` instance which will be flatted
 	
 		Returns:
-			a dict where the obj is flattened to primitive types"""
+			a dict where the obj is flattened to primitive types
+	"""
+	
 	if obj_type == None:
 		obj_type = type(obj)
-	return cm.to_flat(obj_type, obj)
-	
-def unflatit(cls_or_obj, flat_dict, cm = ConvertManager):
-	"""one way to unflatten and load the data back in the `cls`
+	return cm.to_flat(obj_type, obj, val)
+
+
+def unflatit(val, obj_type, obj=None, cm = ConvertManager):
+	"""
+	one way to unflatten and load the data back in the `cls`
 	
 		Args:
 			flat_dict: a flat dict which will be loaded into an instance of
@@ -590,6 +714,8 @@ def unflatit(cls_or_obj, flat_dict, cm = ConvertManager):
 				an existing instance where the data is merged
 			
 		Returns:
-			an instance of type `cls`"""
-	return cm.to_obj(cls_or_obj, flat_dict)
+			an instance of type `cls`
+	"""
 	
+	return cm.to_obj(obj_type, val, obj)
+
